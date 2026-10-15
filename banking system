@@ -1,0 +1,792 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include<limits>
+using namespace std;
+//+++++++++++structure of a account oF customer+++++++++++++++++
+struct Account{
+    int accountNumber;
+    string name;
+    double balance;
+    double loanAmount;
+    double loanInterest; 
+    Account* next;
+    Account* pre; 
+  
+};
+// -------structure to store the transaction history of the account hold by the user--------------.
+struct Transaction {
+    int accountNumber;
+    string type;
+    double amount;
+    string timestamp;
+    Transaction* next;
+};
+// ***************class of transcation of the customer account using queue********************************
+class TransactionQueue {
+private:
+    Transaction* front;
+    Transaction* rear;
+    int size;
+    const int max_size;
+
+public:
+    TransactionQueue() : front(NULL), rear(NULL), size(0), max_size(10) {}
+
+    void enqueue(int accNo, string type, double amount, string time) {
+        Transaction* newTransaction = new Transaction();
+        newTransaction->accountNumber = accNo;
+        newTransaction->type = type;
+        newTransaction->amount = amount;
+        newTransaction->timestamp = time;
+        newTransaction->next = NULL;
+
+        if (rear == NULL) {
+            front = rear = newTransaction;
+        } else {
+            rear->next = newTransaction;
+            rear = newTransaction;
+        }
+
+        size++;
+        if (size > max_size) {
+            dequeue();
+        }
+    }
+
+    void dequeue() {
+        if (front == NULL) return;
+        Transaction* temp = front;
+        front = front->next;
+        if (front == NULL) rear = NULL;
+        delete temp;
+        size--;
+    }
+
+    void display() {
+        if (front == NULL) {
+            cout << "No recent transactions." << endl;
+            return;
+        }
+
+        cout << "Transaction records:" << endl;
+        cout << "Account\tType\tAmount\tTime" << endl;
+        cout << "----------------------------" << endl;
+        Transaction* temp = front;
+        while (temp != NULL) {
+            cout << temp->accountNumber << "\t" << temp->type;
+            if (temp->type.length() < 8) cout << "\t";
+            if (temp->type.length() < 4) cout << "\t";
+            cout << "\t" << temp->amount << "\t" << temp->timestamp << endl;
+            temp = temp->next;
+        }
+    }
+
+    int getSize() { return size; }
+    bool isEmpty() { return front == NULL; }
+};
+
+class Bank {
+private:
+    Account* accountHead;
+    Account* accountTail;
+    TransactionQueue recentTransaction;
+    int accountCounter;
+    string adminUsername;
+    string adminPassword;
+    bool isAdmin;
+
+    Account* findAccount(int accNo) {
+        Account* temp = accountHead;
+        while (temp != NULL) {
+            if (temp->accountNumber == accNo) return temp;
+            temp = temp->next;
+        }
+        return NULL;
+    }
+
+    string getCurrentTime() {
+        return "2025-11-27 11:59"; // placeholder
+    }
+     // CALCULATE THE LOAN INTEREST
+    double calculateLoanInterest(double amount, int months) {
+        double annualRate = 0.30;
+        return amount * annualRate * months / 12;
+    }
+// USED TO SAVE THE ACCOUNT DETAIL OF CUSTOMER 
+    void saveAccounts() {
+        ofstream file("account.txt");
+        Account* temp = accountHead;
+        while (temp != NULL) {
+            file << temp->accountNumber << " "
+                 << temp->balance << " "
+                 << temp->loanAmount << " "
+                 << temp->loanInterest << " "
+                 << temp->name << endl;
+            temp = temp->next;
+        }
+        file.close();
+    }
+
+    void saveAdminCredential() {
+        ofstream file("admincredential.txt");
+        file << adminUsername << endl;
+        file << adminPassword << endl;
+        file.close();
+    }
+
+    void loadAdminCredential() {
+        ifstream file("admincredential.txt");
+        if (file.is_open()) {
+            getline(file, adminUsername);
+            getline(file, adminPassword);
+            file.close();
+            isAdmin = true;
+        }
+}
+
+    void loadAccounts() {
+       ifstream file("account.txt");
+if (!file.is_open()) return;
+
+int accNo;
+double balance, loanAmount, loanInterest;
+string name;
+
+while (file >> accNo >> balance >> loanAmount >> loanInterest) {
+    file.ignore(); // skip whitespace/newline
+    if(!getline(file, name)) break; // if name missing, skip
+
+    Account* newAccount = new Account();
+    newAccount->accountNumber = accNo;
+    newAccount->balance = balance;
+    newAccount->loanAmount = loanAmount;
+    newAccount->loanInterest = loanInterest;
+    newAccount->name = name;
+    newAccount->next = NULL;
+    newAccount->pre = NULL;
+
+    if (accountHead == NULL) {
+        accountHead = accountTail = newAccount;
+    } else {
+        accountTail->next = newAccount;
+        newAccount->pre = accountTail;
+        accountTail = newAccount;
+    }
+
+    if (accNo >= accountCounter) accountCounter = accNo + 1;
+}
+
+
+        file.close();
+    }
+        
+    
+   
+
+public:
+    Bank() {
+        accountHead = NULL;
+        accountTail = NULL;
+        accountCounter = 1001;
+        isAdmin = false;
+        adminUsername = "";
+        adminPassword = "";
+        // loadAdminCredential(); // optional
+        loadAccounts();
+    }
+
+    ~Bank() {
+        Account* current = accountHead;
+        while (current != NULL) {
+            Account* nextAcc = current->next;
+            delete current;
+            current = nextAcc;
+        }
+    }
+
+    void setAdmin() {
+        cout << "----------Admin Setup----------" << endl;
+        cout << "Enter admin username: ";
+        cin.ignore();
+        getline(cin, adminUsername);
+        cout << "Enter admin password: ";
+        getline(cin, adminPassword);
+        saveAdminCredential();
+        isAdmin = true;
+        cout << "Admin account created successfully!" << endl;
+    }
+  // FUNCTION TO CREATE  ADMIN LOGIN 
+    bool adminLogin() {
+        if (!isAdmin) {
+            cout << "No admin account found! Please setup admin first." << endl;
+            return false;
+        }
+     
+        string inputUser, inputPass;
+        cout << "\n=== ADMIN LOGIN ===" << endl;
+        cout << "Username: ";
+        cin.ignore();
+        getline(cin, inputUser);
+        cout << "Password: ";
+        getline(cin, inputPass);
+         
+        if (inputUser == adminUsername && inputPass == adminPassword) {
+            cout << "Login successful! Welcome " << adminUsername << "!" << endl;
+            return true;
+        } else {
+            cout << "Login failed! Invalid username or password." << endl;
+            return false;
+        }
+    }
+// USE TO CREATE THE  ADMIN USERNAME AND PASSWORD
+    void changeAdminCredentials() {
+        if (!isAdmin) {
+            cout << "No account found." << endl;
+            return;
+        }
+        string currentUser, currentPassword;
+        cout << "Current username: ";
+        cin.ignore();
+        getline(cin, currentUser);
+        cout << "Current password: ";
+        getline(cin, currentPassword);
+
+        if (currentUser == adminUsername && currentPassword == adminPassword) {
+            cout << "Enter NEW credentials:" << endl;
+            cout << "New Username: ";
+            getline(cin, adminUsername);
+            cout << "New Password: ";
+            getline(cin, adminPassword);
+            saveAdminCredential();
+            cout << "Admin credentials updated successfully!" << endl;
+        } else {
+            cout << "Current credentials are incorrect!" << endl;
+        }
+    }
+
+    void createAccount() {
+        string name;
+        double bal;
+
+        cin.ignore();
+        cout << "Enter name: ";
+        getline(cin, name);
+        cout << "Enter initial deposit: ";
+        cin >> bal;
+        if (cin.fail() || bal < 0) {
+    cin.clear();
+    cin.ignore(10000, '\n');
+    cout << "Invalid deposit amount!" << endl;
+    return;
+}
+        Account* acc = new Account();
+        acc->accountNumber = accountCounter++;
+        acc->name = name;
+        acc->balance = bal;
+        acc->loanAmount = 0;
+        acc->loanInterest = 0;
+        acc->next = NULL;
+        acc->pre = NULL;
+
+        if (accountHead == NULL) {
+            accountHead = accountTail = acc;
+        } else {
+            accountTail->next = acc;
+            acc->pre = accountTail;
+            accountTail = acc;
+        }
+
+        recentTransaction.enqueue(acc->accountNumber, "ACC_CREATED", bal, getCurrentTime());
+        saveAccounts();
+
+        cout << "Account created! Number: " << acc->accountNumber << endl;
+    }
+
+    void deposit() {
+        int accNo;
+        double amount;
+        cout << "Enter account number: ";
+        cin >> accNo;
+        if (cin.fail()) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid account number!" << endl;
+        return;
+        }
+        cout << "Enter amount: ";
+        cin >> amount;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+        }
+        if (amount <= 0) {
+            cout << "Invalid amount! Amount must be positive." << endl;
+            return;
+        }
+
+        Account* acc = findAccount(accNo);
+        if (acc != NULL) {
+            acc->balance += amount;
+            recentTransaction.enqueue(accNo, "DEPOSIT", amount, getCurrentTime());
+            cout << "Deposit successful! New balance: " << acc->balance << endl;
+            saveAccounts();
+        } else {
+            cout << "Account not found!" << endl;
+        }
+    }
+
+  void withdraw() {
+    int accNo;
+    double amount;
+
+    cout << "Enter account number: ";
+    cin >> accNo;
+
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid account number!" << endl;
+        return;
+    }
+
+    cout << "Enter amount: ";
+    cin >> amount;
+
+    if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+    }
+
+    // find account
+    Account* acc = findAccount(accNo);
+
+    if (acc != NULL) {
+        if (acc->balance >= amount) {
+            acc->balance -= amount;
+
+            recentTransaction.enqueue(accNo, "WITHDRAW", amount, getCurrentTime());
+
+            cout << "Withdrawal successful! New balance: " << acc->balance << endl;
+
+            saveAccounts();
+        } 
+        else {
+            cout << "Not enough balance!" << endl;
+        }
+    } 
+    else {
+        cout << "Account not found!" << endl;
+    }
+}
+
+
+    void checkBalance() {
+        int accNo;
+        cout << "Enter account number: ";
+        cin >> accNo;
+        if(cin.fail()) { 
+           cin.clear(); 
+           cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
+           cout<<"Invalid account number!\n"; 
+           return; 
+          }
+        Account* acc = findAccount(accNo);
+        if (acc != NULL) {
+            cout << "\n=== ACCOUNT DETAILS ===" << endl;
+            cout << "Account Number: " << acc->accountNumber << endl;
+            cout << "Name: " << acc->name << endl;
+            cout << "Balance: $" << acc->balance << endl;
+            if (acc->loanAmount > 0) {
+                cout << "Outstanding Loan: $" << acc->loanAmount << endl;
+                cout << "Loan Interest: $" << acc->loanInterest << endl;
+                cout << "Total Loan Payable: $" << (acc->loanAmount + acc->loanInterest) << endl;
+            }
+        } else {
+            cout << "Account not found." << endl;
+        }
+    }
+
+    void showAccountForward() {
+        Account* t = accountHead;
+        while (t != NULL) {
+            cout << t->accountNumber << "-" << t->name << "-$" << t->balance << endl;
+            t = t->next;
+        }
+    }
+
+    void showAccountBackward() {
+        Account* t = accountTail;
+        while (t != NULL) {
+            cout << t->accountNumber << "-" << t->name << "-$" << t->balance << endl;
+            t = t->pre;
+        }
+    }
+
+    void showRecentTransactions() {
+        recentTransaction.display();
+    }
+
+    void viewAllLoans() {
+        Account* t = accountHead;
+        bool anyloan=false;
+        while (t != NULL) {
+            if (t->loanAmount > 0) {
+                cout << t->accountNumber << "-" << t->name
+                     << " loan: " << t->loanAmount
+                     << " interest: " << t->loanInterest << endl;
+                     anyloan=true;
+            }
+            t = t->next;
+            
+        }
+        if(!anyloan){
+        	cout<<"no loan found in the bank."<<endl;
+		}
+    }
+
+    void applyForLoan() {
+        int accNo, months;
+        double amount;
+
+        cout << "Enter account number: ";
+        cin >> accNo;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+       return;
+      }
+        Account* acc = findAccount(accNo);
+        if (acc == NULL) {
+            cout << "Account not found!" << endl;
+            return;
+        }
+
+        if (acc->loanAmount > 0) {
+            cout << "You already have an outstanding loan: $" << acc->loanAmount << endl;
+            return;
+        }
+
+        cout << "Enter the loan amount: ";
+        cin >> amount;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+        }
+        if (amount <= 0) {
+            cout << "Invalid amount." << endl;
+            return;
+        }
+
+        cout << "Loan duration (months): ";
+        cin >> months;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+      }
+        if (months <= 0) {
+            cout << "Invalid month amount." << endl;
+            return;
+        }
+
+        double interest = calculateLoanInterest(amount, months);
+        double totalPayable = amount + interest;
+
+        cout << "Loan amount: $" << amount << endl;
+        cout << "Loan period: " << months << " months" << endl;
+        cout << "Interest rate: 30% per year" << endl;
+        cout << "Total interest: $" << interest << endl;
+        cout << "Total payable: $" << totalPayable << endl;
+
+        char confirm;
+        cout << "Confirm loan application? (y/n): ";
+        cin >> confirm;
+
+        if (confirm == 'y' || confirm == 'Y') {
+            acc->loanAmount = amount;
+            acc->loanInterest = interest;
+            acc->balance += amount;
+
+            recentTransaction.enqueue(accNo, "LOAN_TAKEN", amount, getCurrentTime());
+            cout << "Loan approved! $" << amount << " added to your account." << endl;
+            cout << "New balance: $" << acc->balance << endl;
+            saveAccounts();
+        } else {
+            cout << "Loan cancelled." << endl;
+        }
+    }
+
+    void payLoan() {
+        int accNo;
+        double amount;
+        cout << "Enter account number: ";
+        cin >> accNo;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+        }
+        Account* acc = findAccount(accNo);
+        if (acc == NULL) {
+            cout << "Account not found." << endl;
+            return;
+        }
+        if (acc->loanAmount <= 0) {
+            cout << "No outstanding loan." << endl;
+            return;
+        }
+
+        double totalLoan = acc->loanAmount + acc->loanInterest;
+        cout << "\n=== LOAN DETAILS ===" << endl;
+        cout << "LOAN AMOUNT: $" << acc->loanAmount << endl;
+        cout << "Interest: $" << acc->loanInterest << endl;
+        cout << "Total Payable: $" << totalLoan << endl;
+
+        cout << "Enter payment amount: $";
+        cin >> amount;
+        if (cin.fail() || amount <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+       }
+        if (amount <= 0) {
+            cout << "Invalid amount." << endl;
+            return;
+        }
+
+        if (amount > acc->balance) {
+            cout << "Insufficient balance!" << endl;
+            return;
+        }
+
+        if (amount >= totalLoan) {
+            acc->balance -= totalLoan;
+            acc->loanAmount = 0;
+            acc->loanInterest = 0;
+            cout << "Loan fully paid!" << endl;
+        } else {
+            acc->loanInterest -= amount;
+            if (acc->loanInterest < 0) {
+                acc->loanAmount += acc->loanInterest; // negative interest reduces principal
+                acc->loanInterest = 0;
+            }
+            acc->balance -= amount;
+            cout << "Partial loan payment made." << endl;
+        }
+
+        recentTransaction.enqueue(accNo, "LOAN_PAYMENT", amount, getCurrentTime());
+        saveAccounts();
+        cout << "New balance: $" << acc->balance << endl;
+    }
+
+    void transferMoney() {
+        int fromAcc, toAcc;
+        double amount;
+
+        cout << "Enter your account: ";
+        cin >> fromAcc;
+        if(cin.fail()) { 
+		cin.clear(); 
+		cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
+		cout<<"Invalid account number!\n"; 
+		return; 
+		}
+        cout << "Enter receiver account: ";
+        cin >> toAcc;
+        if(cin.fail()) { cin.clear(); 
+		cin.ignore(numeric_limits<streamsize>::max(), '\n');
+		 cout<<"Invalid account number!\n"; 
+		 return; 
+		 }
+        cout << "Enter amount: ";
+        cin >> amount;
+         if(cin.fail() || amount <= 0) { 
+		 cin.clear(); 
+		 cin.ignore(numeric_limits<streamsize>::max(), '\n'); 
+		 cout<<"Invalid amount!\n"; 
+		 return; 
+		 }
+        if (amount <= 0) {
+            cout << "Invalid amount! Must be positive." << endl;
+            return;
+        }
+
+        if (fromAcc == toAcc) {
+            cout << "Cannot transfer to same account." << endl;
+            return;
+        }
+
+        Account* from = findAccount(fromAcc);
+        Account* to = findAccount(toAcc);
+
+        if (from == NULL || to == NULL) {
+            cout << "Account not found." << endl;
+            return;
+        }
+
+        if (from->balance >= amount) {
+            from->balance -= amount;
+            to->balance += amount;
+            recentTransaction.enqueue(fromAcc, "TRANSFER_OUT", amount, getCurrentTime());
+            recentTransaction.enqueue(toAcc, "TRANSFER_IN", amount, getCurrentTime());
+            cout << "Transfer successful." << endl;
+            saveAccounts();
+        } else {
+            cout << "Not enough balance." << endl;
+        }
+    }
+
+    void deleteAccount() {
+        int accNo;
+        cout << "Enter account number to delete: ";
+        cin >> accNo;
+        if (cin.fail() || accNo<= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid amount! Amount must be positive." << endl;
+        return;
+       }
+        Account* acc = findAccount(accNo);
+        if (acc == NULL) {
+            cout << "Account not found!" << endl;
+            return;
+        }
+
+        if (acc->loanAmount > 0) {
+            cout << "Cannot delete account! Outstanding loan: $" << acc->loanAmount << endl;
+            return;
+        }
+
+        if (acc->pre == NULL && acc->next == NULL) {
+            accountHead = accountTail = NULL;
+        } else if (acc->pre == NULL) {
+            accountHead = acc->next;
+            accountHead->pre = NULL;
+        } else if (acc->next == NULL) {
+            accountTail = acc->pre;
+            accountTail->next = NULL;
+        } else {
+            acc->pre->next = acc->next;
+            acc->next->pre = acc->pre;
+        }
+        
+        recentTransaction.enqueue(accNo, "ACC_DELETED", 0, getCurrentTime());
+        delete acc;
+        saveAccounts();
+        cout << "Account deleted!" << endl;
+    }
+
+    void adminMenu() {
+        int choice;
+        while (true) {
+            cout << "\n=== ADMIN MENU ===" << endl;
+            cout << "1. View all accounts (forward)" << endl;
+            cout << "2. View all accounts (backward)" << endl;
+            cout << "3. View recent transactions" << endl;
+            cout << "4. Delete account" << endl;
+            cout << "5. View all loans" << endl;
+            cout << "6. Change admin credentials" << endl;
+            cout << "7. Back to main menu" << endl;
+            cout << "Enter choice: ";
+            cin >> choice;
+            if (cin.fail() || choice <= 0) {
+            cin.clear();
+            cin.ignore(10000, '\n');
+            cout << "Invalid choice! choice must be positive." << endl;
+             return;
+            }
+            switch (choice) {
+                case 1: showAccountForward(); break;
+                case 2: showAccountBackward(); break;
+                case 3: showRecentTransactions(); break;
+                case 4: deleteAccount(); break;
+                case 5: viewAllLoans(); break;
+                case 6: changeAdminCredentials(); break;
+                case 7: return;
+                default: cout << "Invalid choice!" << endl;
+            }
+        }
+    }
+};
+
+// ---------------------- MAIN ----------------------
+int main() {
+    Bank bank;
+    int choice;
+
+    cout << "BANKING MANAGEMENT SYSTEM" << endl;
+
+    while (true) {
+        cout << "\n=== MAIN MENU ===" << endl;
+        cout << "1. Create Account" << endl;
+        cout << "2. Deposit Amount" << endl;
+        cout << "3. Withdraw Amount" << endl;
+        cout << "4. Check Balance" << endl;
+        cout << "5. Transfer Amount" << endl;
+        cout << "6. Apply for Loan" << endl;
+        cout << "7. Pay Loan" << endl;
+        cout << "8. View Recent Transactions" << endl;
+        cout << "9. Admin Login" << endl;
+        cout << "10. Setup Admin" << endl;
+        cout << "11. Exit" << endl;
+        cout << "Enter your choice: ";
+        cin >> choice;
+        if (cin.fail() || choice <= 0) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid choice! choice must be positive." << endl;
+        continue;
+       }
+        switch (choice) {
+            case 1: bank.createAccount(); 
+			break;
+		
+            case 2: bank.deposit(); 
+				break;
+			
+            case 3: bank.withdraw(); 
+				break;
+			
+            case 4: bank.checkBalance(); 
+				break;
+			
+            case 5: bank.transferMoney(); 
+				break;
+		
+		
+            case 6: 
+			bank.applyForLoan(); 
+				break;
+            case 7: 
+			bank.payLoan();
+				break;
+			
+            case 8: 
+			bank.showRecentTransactions(); 
+			break;
+		
+            case 9: 
+			if (bank.adminLogin()){	
+			bank.adminMenu(); 
+	}
+	break;
+		
+            case 10: bank.setAdmin();
+		  break;
+            case 11: cout << "Goodbye!" << endl; 
+			return 0;
+            default: cout << "Invalid choice! Follow the given range." << endl;
+        }
+}
+}
